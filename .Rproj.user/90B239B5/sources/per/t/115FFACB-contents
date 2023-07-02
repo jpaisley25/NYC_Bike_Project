@@ -1,0 +1,342 @@
+---
+title: "Citi Bikes"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    df_print: paged
+    css: candy_styles.css
+  pdf_document: default
+---
+
+
+```{r include=FALSE}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(tsibbledata)
+library(tsibble)
+library(hms)
+library(skimr)
+library(slider)
+library(infer)
+library(leaflet)
+library(fable)
+library(knitr)
+library(e1071)
+
+```
+
+# Documentation
+
+## Introduction
+
+
+
+
+
+Citi Bike is a privately owned public bike sharing system which serves the New York City boroughs of the Bronx, Brooklyn, Manhattan, and Queens, as well as Jersey City, New Jersey, and Hoboken, New Jersey.
+ 
+It has reached over 100 million rides since it opened in 2013 and currently has in excess of 17,000 bikes. Customers can purchase either a yearly subscription, day pass or single trip. Customers with the annual subscription receive unlimited 45 minute rides and day pass customers unlimited 30 minute rides over 24 hours and single pass customers one 30 minute ride. Bikes can be picked up from over 1500 stations across New York and Jersey City
+
+
+This report aims to provide some insight in to the rides data and where possible provide actionable advice to increase ride numbers. 
+
+
+NYC's answer to Boris Bikes!
+
+```{r, echo=FALSE, out.width = '75%'}
+knitr::include_graphics(here::here("images/boris.png"))
+```
+
+
+## Business Requirements
+
+To produce this report the following steps were completed:
+
+Step 1: Get an understanding of the dataset. Become familiar with columns names and data contained within columns (data types).
+
+Step 2: Understand the business questions - increasing ride numbers.
+
+Step 3: Investigations to find the most insightful analysis
+
+Step 4: Perform analysis and visualize the results
+
+Step 5: Outline conclusions
+
+
+## Business Process and Data Flow
+
+The below image shows the business process and data flow for the NYC bikes data.
+
+
+```{r, echo=FALSE, out.width = '75%'}
+knitr::include_graphics(here::here("images/flow_diagram.png"))
+```
+
+## Data Visualisation as a Tool for Decision Making
+
+The data visualizations in this report can help NCY bikes make better business decisions by providing clear and easily understandable representations of the data. This allows for easier identification of trends and patterns which can be used to inform business decisions.
+
+## Data Types
+
+The data types present the NYC bikes data set are:
+
+* fctr - factor
+* dbl - double
+* POSIXct - time and date
+
+## Data Quality, Bias and Ethics
+
+### Data Quality
+
+After initial review of the dataset there are no major concerns regarding data quality. The data appears to be accurate and complete although a domain expert would be better able to confirm this. One issue regarding data quality could be that the sample size of 4268 rides out of a total number of approximately 17.5million rides.
+
+### Data Bias
+
+In terms of data bias concern would be in over or under representation of certain groups within the data. This could lead to predictions or actions that discriminate against certain groups of people.
+
+### Data Ethics
+
+A key ethical concern regarding the NYC bikes data is the ability to track peoples movements through ride start and end locations. This is information could be used in ways the person whose data is being stored would not want.
+
+# Data Cleaning 
+
+The only real data cleaning steps were extracting different elements from the start time column in order to get the correct variable for each visualization.
+
+
+```{r include=FALSE}
+bikes <- nyc_bikes %>% 
+  mutate(year = year(start_time),
+         month = month(start_time, label = TRUE, abbr = FALSE),
+         date = date(start_time),
+         week = week(start_time),
+         day = day(start_time),
+         weekday = weekdays(start_time),
+         wday = wday(start_time),
+         time = as_hms(round_date(start_time, "hour")),
+         age = year - birth_year) %>% 
+  mutate(across(weekday, factor, levels=c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))) 
+
+
+
+bikes_start_stations <- as.tibble(bikes) %>% 
+  group_by(start_station) %>% 
+  summarise(start_lat = mean(start_lat),
+            start_long = mean(start_long))
+
+jamie_theme <- theme(panel.background = element_rect(fill = "white"),
+        axis.line = element_line(colour = "grey60"),
+        panel.grid = element_line(colour = "grey90"))
+
+bikes_year_month <- bikes %>% 
+  mutate(year_month  = paste(year(start_time), month(start_time,label = TRUE)),
+         year_month = yearmonth(year_month))
+```
+
+
+
+
+
+
+
+# Data Visualisation 
+
+In the following section a number of data visualizations are presented which identify some patterns and relationships. Some analysis of these patterns and there business implications is provided with each visual.
+
+## Locations of Start Station 
+
+The below plot is an interactive map that shows the start stations used by the bikes in the NYC bikes dataset.
+
+The map shows that for the bike in this sample there are 52 start stations distributed across Jersey City. It is important to note that the start points contained within this sample are a small fraction of the total stations citibikes operates (see below image for full citibikes coverage). Given this, if there are geographical differences in ride patterns then any analysis done with this dataset will only apply to the region of Jersey City covered by the sample. 
+
+```{r echo=FALSE}
+leaflet(bikes_start_stations) %>% 
+  addTiles() %>% 
+  addMarkers(lng = ~start_long, lat = ~start_lat,
+                   clusterOptions = markerClusterOptions())
+```
+
+
+
+```{r, echo=FALSE, out.width = '75%'}
+knitr::include_graphics(here::here("images/citibikes_coverage.png"))
+```
+
+## Seasonality of Rides
+
+It is important to for citibikes to identify any seasonality in the ride numbers so that they can better predict demand and create informed advertising campaigns.
+
+The below plots identify two different types of seasonality present in the data.
+
+The plot titled daily ride numbers vs date shows the yearly seasonality of daily rides. Ride numbers are higher in the warmer months and lower in the colder months. Given that the data contains only one year of data further analysis should be done on othet year to confirm whether the seasonality identified in 2018 holds for other years.
+
+```{r echo=FALSE}
+bikes %>% 
+  index_by(date) %>% 
+  summarise(number_of_rides = n()) %>% 
+  mutate(n_rides_ma = slide_dbl(number_of_rides, 
+                             ~ mean(., na.rm = TRUE),
+                             .before = 14,
+                             .after = 14)) %>% 
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = number_of_rides, colour = "gray")) +
+  geom_line(aes(y = n_rides_ma, colour = "red")) +
+  jamie_theme +
+  labs(title = "Daily Ride Numbers vs Date", y= "Number of Rides", x = "Date") +
+  scale_colour_manual(name = 'Data Type', 
+         values =c('gray'='gray','red'='red'), labels = c('Daily Value','Monthly Rolling\n Average'))
+
+```
+
+The plot titled hourly ride numbers vs time shows the daily seasonality of hourly rides. On weekdays ride numbers are higher at commuter times (7am to 10am and 5pm to 8pm), lower during the middle of the day and late evening and very few people are using the bikes during the night. On weekend the only seasonality is that there are few users in the night, during the daytime rides are spread out quite evenly. 
+
+This information could allow city bikes to identify their typical customer and to market towards similar people. 
+
+```{r echo=FALSE}
+bikes %>% 
+  index_by(time) %>%
+  group_by(weekday) %>% 
+  summarise(number_of_rides = n()) %>% 
+  ggplot() +
+  geom_col(aes(x = time, y = number_of_rides, fill = "blue")) +
+  facet_wrap(~weekday,ncol = 2) +
+  labs(title = "Hourlry Ride Numbers vs Time", y= "Number of Rides", x = "Time") +
+  scale_fill_brewer(palette = "Set2") +
+  guides(fill = "none")
+
+
+```
+
+
+
+## City Bikes Rides by Gender
+
+It is important from both an inclusion and business perspective to consider the gender balance of citibikes users. From the point of view of maximizing inclusion it is important to look at whether the gender balance of users is the same as the gender balance in the population. From a business point of view having a low usage by a specific gender is missing out on customers.
+
+The below plot shows that the number of rides for both males is far higher than the number for females. A hypothesis test is presented below which shows that the it is improbable that the sample we have would result from a scenario where the proportion of females riding citibikes was 0.5. 50% was assumed as an approximation of the percentage of females in the population and the value that would expected if there were no bias in rider demographics. It is therefore important for citibikes to identify the reasons for the lower ride numbers by females.
+
+
+```{r echo=FALSE}
+as.tibble(bikes) %>% 
+  filter(gender != "Unknown") %>% 
+  group_by(gender) %>% 
+  summarise(total_rides = n()) %>% 
+  ggplot() +
+  geom_col(aes(x = gender, y = total_rides, fill = gender)) +
+  jamie_theme +
+  scale_fill_brewer(palette = "Set2")
+
+```
+
+Alpha = 0.05
+
+H0: proportion female - 0.5 = 0
+HA: proportion female - 0.5 < 0
+
+
+From results below p value less that alpha nad therefor the null hypothesis can be rejected.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+bikes_hyp <- nyc_bikes
+
+
+prop_female <- bikes_hyp %>% 
+  filter(gender != "Unknown") %>% 
+  count(gender) %>% 
+  summarise(prop_female = min(n)/sum(n)) %>% 
+  pull()
+
+
+# assumption that male/female proportion in the population is 50%
+
+bikes_m_f <- as_tibble(bikes_hyp) %>% 
+  filter(gender != "Unknown") %>% 
+  select(bike_id, gender) 
+
+null_distribution <- bikes_m_f %>% 
+  specify(response = gender, success = "Female") %>% 
+  hypothesise(null = "point", p = 0.5) %>% 
+  infer::generate(reps = 1000, type = "draw") %>% 
+  calculate(stat = "prop")
+
+null_distribution %>% 
+  visualise(bins = 30) +
+  shade_p_value(obs_stat = prop_female, direction = "left") +
+  jamie_theme
+
+null_distribution %>% 
+  get_p_value(obs_stat = prop_female, direction = "left")
+
+# reject null hypothesis. 
+
+
+# females are underrepresented in the sample based on the population. Therefor citibikes should focus on identifying the reasons why and taking action to increase the prop of females 
+
+```
+
+
+
+## Variability in Number of Bikes Present
+
+The map of start stations shows that the sample only covers the area of Jersey City. This means that if there are geographical differences in ride patterns then any analysis done with this dataset will only apply to the region of Jersey City.
+
+The data shows that throughout the course of the year bikes go weeks and months without any rides. This reason for this is unclear but it results in time periods where fewer bikes are available and thus will impact on the patterns and relationships shown in the data. The plots below shows the number of rides for each bike across the different weeks of the year. It seems unlikely that bikes would go months without any rides, therefore it is likely that for these periods they are not available to be used. The effect of this is that time periods where more bikes are available will have highe ride numbers and vice versa, this will impact the patterns and relationships. 
+
+A solution to the problem outlined above would be to select a random sample of rides rather that all rides from specific bikes. This will give a truer reflection of ride numbers as the bikes are identical and so ride numbers are not impacted by which bikes are available or used. 
+
+```{r echo=FALSE}
+bikes %>% 
+  index_by(week) %>% 
+  group_by(week, bike_id) %>% 
+  summarise(rides = n()) %>% 
+  ggplot() +
+  geom_col(aes(x = week, y = rides, fill = "blue")) +
+  facet_wrap(~bike_id) +
+  jamie_theme +
+  scale_fill_brewer(palette = "Set2") +
+  guides(fill = "none") +
+  labs(title = "Individual Bike Rides per Week vs Week of the Year", y = "Weekly Rides", x = "Week of the Year")
+
+  
+```
+
+## Forecast
+
+A simple forecast based on the 2018 data for the first three months of 2019. Two forecast using different models, SNAIVE and mean have been used to create the forecasts.
+
+```{r echo=FALSE}
+bikes_forecast <- bikes_year_month %>% 
+  index_by((year_month)) %>% 
+  summarise(n = n()) 
+
+
+
+
+fit <- bikes_forecast %>%
+  model(
+    snaive = SNAIVE(n),
+    mean_model = MEAN(n)
+  )
+
+
+
+forecast_1 <- fit %>%
+  fabletools::forecast(h = "3 months")
+
+
+forecast_1 %>%
+  autoplot(bikes_forecast, level = NULL)
+```
+
+
+
+# Conclusions 
+
+The analysis presented in this report has identified ride seasonality on a yearly and daily scale. The yearly seasonality is characterized by greater ride numbers in the warmer months and lower ride numbers in colder months. The daily seasonality is characterized by greater ride numbers at commuting times, lower numbers in the middle of the day and late evening and very low numbers during the night.
+
+The analysis has also shown that the proportions of males and females using citibikes does not reflect the approximated population of NYC.
+
+Lastly analysis has shown within the sample of bikes there are long periods of time where some bikes seem to be unavailable. This means that when more bikes are available ride numbers are likely to be higher and vice versa. More analysis would need to be done to access the impacts this has on the patterns identified in this report. A more suitable sampling method would be to sample a random selection of journeys rather than all journeys for a fixed number of bikes

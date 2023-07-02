@@ -1,0 +1,3 @@
+"0","jamie_theme <- theme(panel.background = element_rect(fill = ""white""),"
+"0","        axis.line = element_line(colour = ""grey60""),"
+"0","        panel.grid = element_line(colour = ""grey94""))"

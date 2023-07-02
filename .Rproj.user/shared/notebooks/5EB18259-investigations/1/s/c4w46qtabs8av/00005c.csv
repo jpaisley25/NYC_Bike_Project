@@ -1,0 +1,6 @@
+"0",""
+"0","bikes %>% "
+"0","  index_by(month) %>% "
+"0","  summarise(number_of_rides = n()) %>% "
+"0","  ggplot() +"
+"0","  geom_col(aes(x = month, y = number_of_rides, group = 1))"

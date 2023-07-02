@@ -1,0 +1,7 @@
+"0",""
+"0","bikes %>% "
+"0","  index_by(week) %>% "
+"0","  distinct(bike_id) %>% "
+"0","  summarise(n = n()) %>% "
+"0","  ggplot(aes(x = week, y = n)) +"
+"0","  geom_line()"

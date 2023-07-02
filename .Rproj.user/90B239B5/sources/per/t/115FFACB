@@ -1,0 +1,28 @@
+{
+    "id": "115FFACB",
+    "path": "~/CodeClan/PDA/PDA/bikes_project/nyc_bikes_report.Rmd",
+    "project_path": "nyc_bikes_report.Rmd",
+    "type": "r_markdown",
+    "hash": "257009901",
+    "contents": "",
+    "dirty": false,
+    "created": 1672993406742.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "tempName": "Untitled1",
+        "chunk_output_type": "inline",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "158,0",
+        "scrollLine": "159"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1671703678,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1672993506621,
+    "read_only": false,
+    "read_only_alternatives": []
+}

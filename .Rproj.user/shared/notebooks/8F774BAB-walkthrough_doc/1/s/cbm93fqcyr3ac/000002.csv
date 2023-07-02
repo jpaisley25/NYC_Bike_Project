@@ -1,0 +1,25 @@
+"0","```r
+candy_2015_piv <- candy_2015 %>%
+  select(c(2:96)) %>%
+  mutate(
+    year = 2015,
+    id = c(paste0(1:(nrow(
+      candy_2015
+    )), \"_\", 2015)),
+    country = as.character(NA),
+    gender = as.character(NA)
+  ) %>%
+  rename(
+    age = \"How old are you?\",
+    going_out = \"Are you going actually going trick or treating yourself?\",
+    \"[JoyJoy (Mit Iodine!)]\" = \"[JoyJoy (Mit Iodine)]\"
+  ) %>%
+  select(id, year, going_out, gender, age, country, c(3:95)) %>%
+  rename_all( ~ str_to_lower(.)) %>%
+  pivot_longer(
+    cols = c(\"[butterfinger]\":\"[york peppermint patties]\"),
+    names_to = \"candy\",
+    values_to = \"rating\"
+  ) %>%
+  mutate(candy = str_sub(candy, 2, -2))
+```"

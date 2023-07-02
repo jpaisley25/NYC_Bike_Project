@@ -1,0 +1,10 @@
+"0","```r
+
+library(tidyverse)
+library(infer)
+library(janitor)
+
+books <- read_csv(here::here(\"data/books.csv\")) %>% 
+  clean_names()
+
+```"

@@ -1,0 +1,1 @@
+{"classes":["grouped_ts","grouped_df","tbl_ts","tbl_df","tbl","data.frame"],"nrow":2070,"ncol":21,"summary":{"A tsibble":["2,070 x 21 [!] <America/New_York>"],"Key":["bike_id [10]"],"Groups":["@ time [7]"]}}

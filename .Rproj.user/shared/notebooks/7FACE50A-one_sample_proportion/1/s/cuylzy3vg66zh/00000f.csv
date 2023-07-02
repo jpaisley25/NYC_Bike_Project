@@ -1,0 +1,9 @@
+"0",""
+"0","library(tidyverse)"
+"0","library(infer)"
+"0","library(janitor)"
+"0",""
+"0","books <- read_csv(here::here(""data/books.csv"")) %>% "
+"0","  clean_names()"
+"2","Error: 'C:/Users/jamie/OneDrive/Documents/CodeClan/PDA/PDA/bikes_project/data/books.csv' does not exist.
+"

@@ -1,0 +1,4 @@
+"0","```r
+candy_2015 <- read_excel(here::here(\"raw_data/boing-boing-candy-2015.xlsx\"))
+head(candy_2015)
+```"

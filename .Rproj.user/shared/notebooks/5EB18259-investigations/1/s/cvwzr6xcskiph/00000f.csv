@@ -1,0 +1,24 @@
+"0","library(tidyverse)"
+"0","library(janitor)"
+"0","library(lubridate)"
+"0","library(tsibbledata)"
+"0","library(tsibble)"
+"0","library(hms)"
+"0","library(skimr)"
+"0","library(slider)"
+"0","library(infer)"
+"0","library(leaflet)"
+"0","library(fable)"
+"2","Warning: package ‘fable’ was built under R version 4.2.2"
+"2","Loading required package: fabletools
+"
+"2","Warning: package ‘fabletools’ was built under R version 4.2.2"
+"2","
+Attaching package: ‘fabletools’
+
+"
+"2","The following objects are masked from ‘package:infer’:
+
+    generate, hypothesize
+
+"

@@ -1,0 +1,4 @@
+"0","leaflet(bikes_start_stations) %>% "
+"0","  addTiles() %>% "
+"0","  addMarkers(lng = ~start_long, lat = ~start_lat,"
+"0","                   clusterOptions = markerClusterOptions())"

@@ -1,0 +1,9 @@
+"0","```r
+
+candy_2017 <- read_excel(here::here(\"raw_data/boing-boing-candy-2017.xlsx\"))
+```"
+"1","New names:
+"
+"0","```r
+head(candy_2017)
+```"

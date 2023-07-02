@@ -1,0 +1,436 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(tsibbledata)
+library(tsibble)
+library(hms)
+library(skimr)
+library(slider)
+library(infer)
+library(leaflet)
+library(fable)
+```
+
+```{r}
+head(nyc_bikes)
+
+
+summary(bikes)
+```
+
+
+
+Citi Bike is a privately owned public bicycle sharing system serving the New York City boroughs of the Bronx, Brooklyn, Manhattan, and Queens, as well as Jersey City, New Jersey, and Hoboken, New Jersey.
+
+In October 2017 the system reached a total of 50 million rides and in July 2020 the system reached 100 million rides. As of July 2019, there are 169,000 annual subscribers. Monthly average ridership numbers increased above 100,000 for the first time in June 2021. The all-time record for single-day ridership occurred on September 9, 2022, when the system had 138,372 rides.
+
+NYC's Boris Bikes 
+
+
+
+Steps 1: Get an understaning of the dataset. Become familiar with columns names and data contained withing columns (data types).
+
+Step 2: Understand the business questions.
+
+Step 3: Investigations to work out the best analysis to do on the data set to answer the questions
+
+Step 4: Perfom analyis and visulise the results
+
+Step 5: Outline conclusions
+
+
+
+
+```{r}
+bikes <- nyc_bikes %>% 
+  mutate(year = year(start_time),
+         month = month(start_time, label = TRUE, abbr = FALSE),
+         date = date(start_time),
+         week = week(start_time),
+         day = day(start_time),
+         weekday = weekdays(start_time),
+         wday = wday(start_time),
+         time = as_hms(round_date(start_time, "hour")),
+         age = year - birth_year) %>% 
+  mutate(across(weekday, factor, levels=c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")))  
+  
+
+bikes %>% 
+distinct(type)
+
+bikes %>% 
+  index_by(day) %>% 
+  summarise(bikes_hired = n()) %>% 
+  ggplot() +
+  geom_line(aes(x = day, y = bikes_hired))
+
+```
+
+
+
+Ethics: data could be used to track peoples movements 
+
+
+```{r}
+bikes %>%
+  mutate(duration = stop_time - start_time) %>% 
+  filter(duration < 45) %>% 
+  ggplot() +
+  geom_histogram(aes(x = duration))
+
+bikes %>%
+  filter(age < 100) %>% 
+  ggplot() +
+  geom_histogram(aes(x = age), binwidth = 5)
+
+bikes %>% 
+  distinct(age) %>% 
+  arrange(age)
+
+```
+
+
+
+```{r}
+bikes %>% 
+  index_by(date) %>% 
+  summarise(number_of_rides = n()) %>% 
+  mutate(n_rides_ma = slide_dbl(number_of_rides, 
+                             ~ mean(., na.rm = TRUE),
+                             .before = 14,
+                             .after = 14)) %>% 
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = number_of_rides), colour = "gray") +
+  geom_line(aes(y = n_rides_ma), colour = "red")
+
+bikes %>% 
+  index_by(month) %>% 
+  summarise(number_of_rides = n()) %>% 
+  ggplot() +
+  geom_col(aes(x = month, y = number_of_rides, group = 1))
+
+bikes %>% 
+  index_by(wday) %>% 
+  summarise(number_of_rides = n()) %>% 
+  ggplot() +
+  geom_col(aes(x = fct_shift(as.factor(wday)), y = number_of_rides)) +
+  scale_x_discrete(labels = c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")) 
+  
+
+bikes %>% 
+  index_by(time) %>%
+  group_by(weekday) %>% 
+  summarise(number_of_rides = n()) %>% 
+  ggplot() +
+  geom_col(aes(x = time, y = number_of_rides)) +
+  facet_wrap(~weekday,ncol = 2) 
+ 
+```
+
+
+
+gender bias
+
+
+```{r}
+prop_female <- bikes %>% 
+  filter(gender != "Unknown") %>% 
+  count(gender) %>% 
+  summarise(prop_female = min(n)/sum(n)) %>% 
+  pull()
+
+
+# assumption that male/female proportion in the population is 50%
+
+```
+
+alpha = 0.05
+
+H0 is the prop of females using city bikes is 0.5: prop female - 0.5 = 0
+HA is the prop of females using city bikes is less than 0.5: prop_female - 0.5 < 0
+
+
+```{r}
+bikes_m_f <- bikes %>% 
+  filter(gender != "Unknown")
+
+null_distribution <- bikes_m_f %>% 
+  specify(response = gender, success = "Female") %>% 
+  hypothesise(null = "point", p = 0.5) %>% 
+  generate(reps = 1000, type = "draw") %>% 
+  calculate(stat = "prop")
+
+null_distribution %>% 
+  visualise(bins = 30) +
+  shade_p_value(obs_stat = prop_female, direction = "left")
+
+null_distribution %>% 
+  get_p_value(obs_stat = prop_female, direction = "left")
+
+# reject null hypothesis. 
+
+
+# females are underrepresented in the sample based on the population. Therefor citibikes should focus on identifying the reasons why and taking action to increase the prop of females 
+
+```
+
+
+```{r}
+age_brackets <- tibble(age_bracket = c("18 to 24 years", "25 to 34 years", "35 to 44 years", "45 to 54 years", "55 to 64 years", "over 64 years"), p = c(0.093, 0.145, 0.162, 0.135, 0.089, 0.128))
+
+# change from prop of proportion to prop of eligible population
+
+age_brackets_pop <- age_brackets %>% 
+  group_by(age_bracket) %>% 
+  summarise(prop = p / sum(age_brackets$p)) %>% 
+  ungroup() %>% 
+  mutate(pop_or_sample = "pop")
+
+
+
+  ggplot() +
+  geom_col(aes(x = age_bracket, y = prop)) 
+  
+age_brackets
+
+?tibble
+```
+
+
+```{r}
+bikes_filtered <- bikes %>% 
+  filter(age > 17,
+         age < 100) 
+  
+
+bikes_filtered %>%
+  count(age) %>% 
+  mutate(age_bracket = case_when(
+    age < 25 ~ "18 to 24 years",
+    age < 35 ~ "25 to 34 years",
+    age < 45 ~ "35 to 44 years",
+    age < 55 ~ "45 to 54 years",
+    age < 65 ~ "55 to 64 years",
+    TRUE ~ "over 64 years")
+  ) %>% 
+  group_by(age_bracket) %>% 
+  summarise(n = sum(n)) %>% 
+  group_by(age_bracket) %>% 
+  summarise(prop = n / nrow(bikes_filtered)) %>% 
+  mutate(pop_or_sample = "sample") %>% 
+  bind_rows(age_brackets_pop) %>% 
+  ggplot() +
+  geom_col(aes(x = age_bracket, y = prop, fill = pop_or_sample), position = "dodge") 
+  
+  
+```
+
+
+
+
+
+```{r}
+bikes_start <- as.tibble(bikes) %>% 
+  group_by(start_station) %>% 
+  summarise(start_lat = mean(start_lat),
+            start_long = mean(start_long))
+
+bikes_end <- as.tibble(bikes) %>% 
+  group_by(end_station) %>% 
+  summarise(end_lat = mean(end_lat),
+            end_long = mean(end_long))
+
+bikes_join <- bikes_start %>% 
+  full_join(bikes_end, by = c("start_station" = "end_station"))
+
+station_lat_and_longs <- bikes_join %>% 
+  mutate(lat = rowMeans(subset(bikes_join, select = c(start_lat, end_lat)), na.rm = TRUE),
+         long = rowMeans(subset(bikes_join, select = c(start_long, end_long)), na.rm = TRUE)) %>% 
+  select(station = start_station, lat, long)
+  
+
+bikes %>% 
+  distinct(start_station)
+
+bikes %>% 
+  distinct(end_station)
+
+
+leaflet(station_lat_and_longs) %>% 
+  addTiles() %>% 
+  addMarkers(lng = ~long, lat = ~lat,
+                   clusterOptions = markerClusterOptions())
+```
+
+```{r}
+library(urca)
+```
+```{r}
+bikes_year_month <- bikes %>% 
+  mutate(year_month  = paste(year(start_time), month(start_time,label = TRUE)),
+         year_month = yearmonth(year_month))
+
+bikes_year_week <- bikes %>% 
+  mutate(year_week  = paste0(year(start_time), " ", "W", week(start_time))) %>% 
+  filter(week != 53) %>% 
+  mutate(year_week = yearweek(year_week))
+
+
+
+yearmonth("2017 March")
+```
+
+
+
+
+forecast
+
+```{r}
+bikes_forecast <- bikes_year_week %>% 
+  index_by((year_week)) %>% 
+  summarise(n = n()) 
+
+
+
+
+fit <- bikes_forecast %>%
+  model(
+    snaive = SNAIVE(n),
+    mean_model = MEAN(n)
+  )
+
+?model
+
+forecast_1 <- fit %>%
+  fabletools::forecast(h = "3 months")
+forecast_1
+
+forecast_1 %>%
+  autoplot(bikes_forecast, level = NULL)
+
+```
+
+
+```{r}
+bikes_forecast <- bikes %>% 
+  index_by((date)) %>% 
+  summarise(n = n()) %>% 
+  tsibble::fill_gaps(n = median(n))
+
+
+
+
+
+fit <- bikes_forecast %>%
+  model(
+    snaive = SNAIVE(n),
+    mean_model = MEAN(n),
+    arima = ARIMA(log(n))
+  )
+
+forecast_1 <- fit %>%
+  fabletools::forecast(h = "5 months")
+forecast_1
+
+forecast_1 %>%
+  autoplot(bikes_forecast, level = NULL)
+```
+
+```{r}
+bikes %>% 
+  index_by(month) %>% 
+  group_by(month, bike_id) %>% 
+  summarise(n = n()) %>%
+  index_by(month) %>% 
+  summarise(n())
+  ggplot() +
+  geom_line(aes(month, n, colour = bike_id, group = bike_id))
+  
+```
+
+
+
+
+```{r}
+bikes %>% 
+  index_by(date) %>% 
+  group_by(date, bike_id) %>% 
+  summarise(r = n()) %>% 
+  index_by(date) %>% 
+  summarise(n = n(),
+            rides = sum(r),
+            rides_per_bike = rides / n) %>% 
+  ggplot() +
+  geom_line(aes(x = date, y = rides_per_bike, group = 1))
+
+bikes %>% 
+  index_by(month) %>% 
+  group_by(month, bike_id) %>% 
+  summarise(r = n()) %>% 
+  index_by(month) %>% 
+  summarise(n = n(),
+            rides = sum(r),
+            rides_per_bike = rides / n) %>% 
+  ggplot() +
+  geom_line(aes(x = month, y = rides_per_bike, group = 1))
+
+bikes %>% 
+  index_by(week) %>% 
+  group_by(week, bike_id) %>% 
+  summarise(r = n()) %>% 
+  index_by(week) %>% 
+  summarise(n = n(),
+            rides = sum(r),
+            rides_per_bike = rides / n) %>% 
+  ggplot() +
+  geom_line(aes(x = week, y = rides_per_bike))
+
+
+bikes %>% 
+  index_by(date) %>% 
+  group_by(date, bike_id) %>% 
+  summarise(r = n()) %>%
+  index_by(date) %>% 
+  summarise(n = n(),
+            rides = sum(r),
+            rides_per_bike = rides / n) %>% 
+  mutate(month = month(date)) %>% 
+  index_by(month) %>% 
+  summarise(mean = mean(rides_per_bike)) %>% 
+  ggplot() +
+  geom_line(aes(x = month, y = mean))
+
+
+bikes %>% 
+  index_by(week) %>%
+  group_by(week, bike_id) %>% 
+  summarise(n()) %>% 
+  summarise(n())
+```
+
+
+
+```{r}
+bikes_time <- nyc_bikes %>% 
+  mutate(weekday = weekdays(start_time),
+         time = as_hms(round_date(start_time, "hour"))) %>% 
+  mutate(across(weekday, factor, levels=c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))) 
+
+bikes_time %>% 
+  index_by(time) %>%
+  group_by(weekday) %>% 
+  summarise(number_of_rides = n()) %>% 
+  ggplot() +
+  geom_col(aes(x = time, y = number_of_rides, fill = "blue")) +
+  facet_wrap(~weekday,ncol = 2) +
+  labs(title = "Hourlry Ride Numbers vs Time", y= "Number of Rides", x = "Time") +
+  scale_fill_brewer(palette = "Set2") +
+  guides(fill = "none")
+```
+

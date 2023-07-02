@@ -1,0 +1,7 @@
+"0",""
+"0","bikes %>% "
+"0","  index_by(wday) %>% "
+"0","  summarise(number_of_rides = n()) %>% "
+"0","  ggplot() +"
+"0","  geom_col(aes(x = fct_shift(as.factor(wday)), y = number_of_rides)) +"
+"0","  scale_x_discrete(labels = c(""Monday"",""Tuesday"", ""Wednesday"", ""Thursday"", ""Friday"", ""Saturday"", ""Sunday"")) "

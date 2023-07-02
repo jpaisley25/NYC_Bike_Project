@@ -1,0 +1,7 @@
+"0","books_tidy %>%
+  mutate(has_text_reviews = if_else(text_reviews_count == 0, ""No"", ""Yes"")) %>% 
+  select(book_id, has_text_reviews)
+"
+"2","Error in mutate(., has_text_reviews = if_else(text_reviews_count == 0,  : 
+  object 'books_tidy' not found
+"

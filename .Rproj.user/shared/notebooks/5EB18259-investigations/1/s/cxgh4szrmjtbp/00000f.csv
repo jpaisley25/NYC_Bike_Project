@@ -1,0 +1,5 @@
+"0","bikes_forecast <- bikes_year_week %>% "
+"0","  index_by((year_week)) %>% "
+"0","  summarise(n = n()) "
+"2","Error in index_by(., (year_week)) : object 'bikes_year_week' not found
+"

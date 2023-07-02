@@ -1,0 +1,9 @@
+"0","bikes %>%
+  index_by(date) %>% 
+  group_by(bike_id) %>% 
+  summarise(n = n()) %>% 
+  count(n) %>% 
+  ggplot(aes(x = n, y = nn)) +
+  geom_col()
+"
+"2","Storing counts in `nn`, as `n` already present in input"
